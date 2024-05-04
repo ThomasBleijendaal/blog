@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option csharp_namespace = "Shared.Storage";
+
+service FileServer {
+  rpc GetFile (GetFileRequest) returns (FileResponse);
+}
+
+message GetFileRequest {
+  string fileName = 1;
+}
+
+message FileResponse {
+  string contentType = 1;
+  bytes contents = 2;
+}

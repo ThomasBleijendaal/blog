@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>blog.bleij.pro | Azure Container Apps &raquo; First Container</title>
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <nav id="primary">
+        <ul>
+            <li class="selected"><a href="index.html">Azure Container Apps</a></li>
+        </ul>
+    </nav>
+    <nav id="secondary">
+        <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="azure-function.html">Azure Function</a></li>
+            <li><a href="azure-container-apps-design.html">Design</a></li>
+            <li class="selected"><a href="azure-container-apps-first-container-app.html">First Container App</a></li>
+        </ul>
+    </nav>
+    <main>
+        <header>First Container App</header>
+        <p>
+            The first container app will be the HTTP container facing the internet. Since I have a storage account with
+            my hand-written HTML files, I can easily output those files and replace the temporary Azure Function. I have
+            to deploy quite a lot of resource to get the first container app working so lets begin.
+        </p>
+        <p>
+            To host all the containers, I need a bog-standard Container Registry:
+        </p>
+        <pre class="bicep">
+resource ContainerRegistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
+    location: location
+    name: containerRegistryName
+    sku: {
+        name: 'Basic'
+    }
+    properties: {
+        adminUserEnabled: false
+        policies: {
+        azureADAuthenticationAsArmPolicy: {
+            status: 'enabled'
+        }
+        exportPolicy: {
+            status: 'enabled'
+        }
+        }
+        publicNetworkAccess: 'Enabled'
+        networkRuleBypassOptions: 'AzureServices'
+    }
+}</pre>
+        <p>
+            Next to that I also need as Container Environment, which, in my mind, is similar to an App Service Plan when using Web Apps. There is not much to it:
+        </p>
+        <pre class="bicep">
+resource ContainerEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
+    location: location
+    name: containerEnvironmentName
+}</pre>
+        <hr>
+        <p>
+            <a href="azure-container-apps-design.html">Previous page: Azure Container Apps design</a>
+        </p>
+    </main>
+    <footer>
+        <p>&copy; 2024 &mdash; blog.bleij.pro</p>
+    </footer>
+</body>
+
+</html>

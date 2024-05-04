@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Shared/">
+    <Project Path="container-apps\shared\src\Rendering\Rendering.csproj" />
+  </Folder>
+  <Folder Name="/Misc/">
+    <Project Path="function-app\src\StaticBlog.csproj" />
+  </Folder>
+  <Folder Name="/Containers/">
+    <Project Path="container-apps\http-container\src\HttpContainer.csproj" />
+    <Project Path="container-apps\process-container\src\ProcessContainer.fsproj" />
+    <Project Path="container-apps\storage-container\src\StorageContainer.csproj" />
+  </Folder>
+</Solution>

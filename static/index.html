@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>blog.bleij.pro | Azure Container Apps &raquo; Introduction</title>
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <nav id="primary">
+        <ul>
+            <li class="selected"><a href="index.html">Azure Container Apps</a></li>
+        </ul>
+    </nav>
+    <nav id="secondary">
+        <ul>
+            <li class="selected"><a href="index.html">Introduction</a></li>
+            <li><a href="azure-function.html">Azure Function</a></li>
+            <li><a href="azure-container-apps-design.html">Design</a></li>
+            <li><a href="azure-container-apps-first-container-app.html">First Container App</a></li>
+        </ul>
+    </nav>
+    <main>
+        <header>Introduction</header>
+        <p>
+            This blog is going to be used as a reason to create a small application using Container Apps in Azure. I
+            want to create a functioning blog system with several moving parts, all hosted in Azure Container Apps.
+            These parts will probably be:
+        </p>
+        <ul>
+            <li>A public internet facing container that serves all content.</li>
+            <li>An ingest container that pre-renders all pages (written in markdown) to html, and probably some
+                compression variants too, and rss for good measure.</li>
+            <li>A GitHub repo hosting all markdown, and is used by the ingest container to import all stuff.
+                I'll probably also use that repo to deploy everything.
+            </li>
+            <li>Some storage container to host all pre-rendered pages.</li>
+        </ul>
+        <aside class="note">
+            <header>Note</header>
+            <p><em>Over-engineering</em> will be the name of the game, so most things will be way too complex or even
+                convoluted for what they really need to be. You're reading this blog before I've even finished the
+                system, so I could have been done already.
+            </p>
+        </aside>
+        <p>
+            I was inspired by a post on danluu.com (<a href="https://danluu.com/slow-device/">How web bloat impacts
+                users with slow devices</a>), so I want to make this blog pretty bare bones and light, and keep the
+            server side also very fast. The danluu website is a bit too bare bones for me, so I've added a little CSS,
+            just to play around with grids.
+        </p>
+        <hr>
+        <p>
+            <a href="azure-function.html">Next page: Azure Function</a>
+        </p>
+    </main>
+    <footer>
+        <p>&copy; 2024 &mdash; blog.bleij.pro</p>
+    </footer>
+</body>
+
+</html>

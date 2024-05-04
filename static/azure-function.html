@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>blog.bleij.pro | Azure Container Apps &raquo; Azure Function</title>
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <nav id="primary">
+        <ul>
+            <li class="selected"><a href="index.html">Azure Container Apps</a></li>
+        </ul>
+    </nav>
+    <nav id="secondary">
+        <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li class="selected"><a href="azure-function.html">Azure Function</a></li>
+            <li><a href="azure-container-apps-design.html">Design</a></li>
+            <li><a href="azure-container-apps-first-container-app.html">First Container App</a></li>
+        </ul>
+    </nav>
+    <main>
+        <header>Azure Function</header>
+        <p>
+            To start hosting this blog, I'll employ an Azure Function to serve the handwritten html files from a blob
+            storage. It will also serve as a baseline to compare the Container App solution to.
+        </p>
+        <p>
+            The base implementation of this Azure Function is something like this:
+        </p>
+        <pre class="csharp">[Function(nameof(RouteFunctionAsync))]
+public async Task&lt;IActionResult&gt; RouteFunctionAsync(
+    [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{*route=index.html}")] HttpRequest req,
+    [BlobInput("static/{route}")] BlobClient? blob,
+    string route)
+{
+    if (blob == null || !await blob.ExistsAsync())
+    {
+        return new NotFoundResult();
+    }
+
+    var contentType = Path.GetExtension(route) switch
+    {
+        ".html" => "text/html",
+        ".css" => "text/css",
+        ".ico" => "image/x-icon",
+        _ => "application/octet-stream"
+    };
+
+    return new FileStreamResult(await blob.OpenReadAsync(), contentType);
+}</pre>
+        <p>
+            This consumption tier linux function app has an average response time of around 50ms if I do some manual
+            tests in Postman, and gets to around 130ms when I hit it with 25 concurrent users using some load test (I've
+            used octoperf for that). I've saved the test report so will compare it to the Container Apps version.
+        </p>
+        <hr>
+        <p>
+            <a href="index.html">Previous page: Introduction</a>
+            |
+            <a href="azure-container-apps-design.html">Next page: Azure Container Apps design</a>
+        </p>
+    </main>
+    <footer>
+        <p>&copy; 2024 &mdash; blog.bleij.pro</p>
+    </footer>
+</body>
+
+</html>
