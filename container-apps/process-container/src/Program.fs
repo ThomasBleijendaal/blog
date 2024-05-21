@@ -5,6 +5,11 @@ open Markdig.Extensions.Yaml
 open Rendering
 open System.Net.Http
 open System
+open Azure.Identity
+open Azure.Messaging.ServiceBus
+open System.Threading
+open System.Threading.Tasks
+open System.IO.Compression
 
 type Metadata() = 
     let mutable title: string = ""
@@ -74,171 +79,199 @@ let downloadUrl = Environment.GetEnvironmentVariable("InputFile");
 
 let httpClient = new HttpClient()
 
-#if DEBUG
+let fqns = Environment.GetEnvironmentVariable("ServiceBusFqns")
+let tenantId = Environment.GetEnvironmentVariable("TenantId")
+let clientId = Environment.GetEnvironmentVariable("ClientId")
 
-copyFolder (Path.Combine(Directory.GetCurrentDirectory(), "../../../../../../")) repoFolder
+type Message = { Now: DateTimeOffset }
 
-#else
+let options = 
+    match clientId with
+    | uidClientId when uidClientId <> null -> DefaultAzureCredentialOptions (TenantId = tenantId, ManagedIdentityClientId = uidClientId)
+    | _ -> DefaultAzureCredentialOptions (TenantId = tenantId)
 
-open System.IO.Compression
+let credential = DefaultAzureCredential(options)
 
-let downloadTask = 
-    task {
-        let! data = httpClient.GetStreamAsync(downloadUrl);
+let client = new ServiceBusClient(fqns, credential)
 
-        ZipFile.ExtractToDirectory(data, workFolder)
-    }
+let receiver = client.CreateReceiver("process")
 
-downloadTask.GetAwaiter().GetResult();
+let cts = new CancellationTokenSource ()
 
-#endif
+AppDomain.CurrentDomain.ProcessExit.Add(fun (_) -> cts.Cancel())
 
-resetFolder outputFolder
+let mainTask = task {
+    while cts.IsCancellationRequested = false do
+        let! message = receiver.ReceiveMessageAsync(cancellationToken = cts.Token)
 
-copyFromTemplate "favicon.ico"
-copyFromTemplate "style.css"
-copyFromTemplate "robots.txt"
+        if message <> null then
+            do! receiver.CompleteMessageAsync(message)
+        
+            #if DEBUG
 
-let pageTemplate = Path.Combine(templateFolder, @"page.html")
+            copyFolder (Path.Combine(Directory.GetCurrentDirectory(), "../../../../../../")) repoFolder
 
-let markdownPipeline = MarkdownHelper.GetPipeline();
-let yamlDeserializer = YamlHelper.GetYamlDeserializer();
+            #else
 
-let getMarkdown (markdownDocument: MarkdownDocument) (fileContents: string) : Metadata =
-    let metadata = markdownDocument.Descendants<YamlFrontMatterBlock>() |> Seq.head
+            let! data = httpClient.GetStreamAsync(downloadUrl);
+            ZipFile.ExtractToDirectory(data, workFolder)
 
-    let yamlData = fileContents.Substring(metadata.Span.Start, metadata.Span.Length).Replace("---", "")
-    let yamlInput = new StringReader(yamlData)
+            #endif
 
-    yamlDeserializer.Deserialize<Metadata>(yamlInput)
+            resetFolder outputFolder
 
-let naturalSort (file: string) =
-    Path.GetFileName(file).Split('-')[0] |> int
+            copyFromTemplate "favicon.ico"
+            copyFromTemplate "style.css"
+            copyFromTemplate "robots.txt"
 
-let getThemes () : Themes =
-    Directory.EnumerateDirectories(markdownFolder)
-    |> Seq.sortBy naturalSort
-    |> Seq.map (fun theme -> 
-        Directory.EnumerateFiles(theme)
-        |> Seq.sortBy naturalSort
-        |> Seq.mapi (fun index page -> 
-            let fileLines = File.ReadAllLines page
+            let pageTemplate = Path.Combine(templateFolder, @"page.html")
 
-            let fileContents = MarkdownHelper.InlineReferences(repoFolder, fileLines)
+            let markdownPipeline = MarkdownHelper.GetPipeline();
+            let yamlDeserializer = YamlHelper.GetYamlDeserializer();
 
-            let document = Markdown.Parse(fileContents, markdownPipeline);
+            let getMarkdown (markdownDocument: MarkdownDocument) (fileContents: string) : Metadata =
+                let metadata = markdownDocument.Descendants<YamlFrontMatterBlock>() |> Seq.head
 
-            let metadata = getMarkdown document fileContents
+                let yamlData = fileContents.Substring(metadata.Span.Start, metadata.Span.Length).Replace("---", "")
+                let yamlInput = new StringReader(yamlData)
 
-            { Index = index; Title = metadata.Title; Theme = metadata.Theme; Content = document; Visible = metadata.Visible }))
-    |> Seq.collect id
-    |> Seq.filter (fun chapter -> chapter.Visible)
-    |> Seq.groupBy (fun chapter -> chapter.Theme)
-    |> Seq.map (fun (theme, chapters) -> { Title = theme; Chapters = chapters |> Seq.toArray})
-    |> Seq.toArray
+                yamlDeserializer.Deserialize<Metadata>(yamlInput)
+
+            let naturalSort (file: string) =
+                Path.GetFileName(file).Split('-')[0] |> int
+
+            let getThemes () : Themes =
+                Directory.EnumerateDirectories(markdownFolder)
+                |> Seq.sortBy naturalSort
+                |> Seq.map (fun theme -> 
+                    Directory.EnumerateFiles(theme)
+                    |> Seq.sortBy naturalSort
+                    |> Seq.mapi (fun index page -> 
+                        let fileLines = File.ReadAllLines page
+
+                        let fileContents = MarkdownHelper.InlineReferences(repoFolder, fileLines)
+
+                        let document = Markdown.Parse(fileContents, markdownPipeline);
+
+                        let metadata = getMarkdown document fileContents
+
+                        { Index = index; Title = metadata.Title; Theme = metadata.Theme; Content = document; Visible = metadata.Visible }))
+                |> Seq.collect id
+                |> Seq.filter (fun chapter -> chapter.Visible)
+                |> Seq.groupBy (fun chapter -> chapter.Theme)
+                |> Seq.map (fun (theme, chapters) -> { Title = theme; Chapters = chapters |> Seq.toArray})
+                |> Seq.toArray
     
-let toThemeSlug (theme: Theme) =
-    theme.Title.ToLowerInvariant().Replace(" ", "-")
+            let toThemeSlug (theme: Theme) =
+                theme.Title.ToLowerInvariant().Replace(" ", "-")
 
-let toChapterSlug (chapter: Chapter) =
-    match chapter with
-    | { Index = 0 } -> "index.html"
-    | _ -> 
-        let slug = chapter.Title.ToLowerInvariant().Replace(" ", "-")
-        $"{slug}.html"
+            let toChapterSlug (chapter: Chapter) =
+                match chapter with
+                | { Index = 0 } -> "index.html"
+                | _ -> 
+                    let slug = chapter.Title.ToLowerInvariant().Replace(" ", "-")
+                    $"{slug}.html"
 
-let themeIndexLinkHtml (theme: Theme) =
-    $"<a href=\"/{toThemeSlug(theme)}/index.html\">{theme.Title}</a>"
+            let themeIndexLinkHtml (theme: Theme) =
+                $"<a href=\"/{toThemeSlug(theme)}/index.html\">{theme.Title}</a>"
 
-let chapterUrl (theme: Theme) (chapter: Chapter) =
-    $"{toThemeSlug(theme)}/{toChapterSlug(chapter)}"
+            let chapterUrl (theme: Theme) (chapter: Chapter) =
+                $"{toThemeSlug(theme)}/{toChapterSlug(chapter)}"
 
-let themeChapterLinkHtml (titlePrefix: string) (theme: Theme) (chapter: Chapter) =
-    $"<a href=\"/{chapterUrl theme chapter}\">{titlePrefix}{chapter.Title}</a>"
+            let themeChapterLinkHtml (titlePrefix: string) (theme: Theme) (chapter: Chapter) =
+                $"<a href=\"/{chapterUrl theme chapter}\">{titlePrefix}{chapter.Title}</a>"
 
-let populatePageTemplate (themes: Themes) (theme: Theme) (chapter: Chapter) (html: string) =
-    let wrapLiAndConcat (current) (renderItem) (input) = 
-        let className (item) = 
-            match current = item with
-            | true -> @" class=""selected"""
-            | false -> ""
+            let populatePageTemplate (themes: Themes) (theme: Theme) (chapter: Chapter) (html: string) =
+                let wrapLiAndConcat (current) (renderItem) (input) = 
+                    let className (item) = 
+                        match current = item with
+                        | true -> @" class=""selected"""
+                        | false -> ""
 
-        input 
-        |> Array.map (fun item -> $"<li{className(item)}>{renderItem(item)}</li>") 
-        |> String.concat ""
+                    input 
+                    |> Array.map (fun item -> $"<li{className(item)}>{renderItem(item)}</li>") 
+                    |> String.concat ""
 
-    let themesHtml = themes |> wrapLiAndConcat theme themeIndexLinkHtml
+                let themesHtml = themes |> wrapLiAndConcat theme themeIndexLinkHtml
 
-    let chaptersHtml = theme.Chapters |> wrapLiAndConcat chapter (themeChapterLinkHtml "" theme)
+                let chaptersHtml = theme.Chapters |> wrapLiAndConcat chapter (themeChapterLinkHtml "" theme)
 
-    let maxChapterIndex = theme.Chapters.Length - 1
+                let maxChapterIndex = theme.Chapters.Length - 1
 
-    let siblingChapter = 
-        match chapter.Index with 
-        | i when i = 0 && i < maxChapterIndex -> (None, Some theme.Chapters[i + 1])
-        | i when i > 0 && i < maxChapterIndex -> (Some theme.Chapters[i - 1], Some theme.Chapters[i + 1])
-        | i when i > 0 && i = maxChapterIndex -> (Some theme.Chapters[i - 1], None)
-        | _ -> (None, None)
+                let siblingChapter = 
+                    match chapter.Index with 
+                    | i when i = 0 && i < maxChapterIndex -> (None, Some theme.Chapters[i + 1])
+                    | i when i > 0 && i < maxChapterIndex -> (Some theme.Chapters[i - 1], Some theme.Chapters[i + 1])
+                    | i when i > 0 && i = maxChapterIndex -> (Some theme.Chapters[i - 1], None)
+                    | _ -> (None, None)
 
-    let previousLink = themeChapterLinkHtml "Previous page: " theme
-    let nextLink = themeChapterLinkHtml "Next page: " theme
+                let previousLink = themeChapterLinkHtml "Previous page: " theme
+                let nextLink = themeChapterLinkHtml "Next page: " theme
 
-    let linksHtml =
-        match siblingChapter with
-        | (Some p, Some n) -> [| previousLink p; nextLink n |] |> String.concat " | "
-        | (Some p, None) -> previousLink p
-        | (None, Some n) -> nextLink n
-        | _ -> ""
+                let linksHtml =
+                    match siblingChapter with
+                    | (Some p, Some n) -> [| previousLink p; nextLink n |] |> String.concat " | "
+                    | (Some p, None) -> previousLink p
+                    | (None, Some n) -> nextLink n
+                    | _ -> ""
 
-    let html = 
-        html.Replace("{themes}", themesHtml)
-            .Replace("{theme}", chapter.Theme)
-            .Replace("{chapters}", chaptersHtml)
-            .Replace("{title}", chapter.Title)
-            .Replace("{body}", chapter.Content.ToHtml(markdownPipeline))
-            .Replace("{links}", linksHtml)
+                let html = 
+                    html.Replace("{themes}", themesHtml)
+                        .Replace("{theme}", chapter.Theme)
+                        .Replace("{chapters}", chaptersHtml)
+                        .Replace("{title}", chapter.Title)
+                        .Replace("{body}", chapter.Content.ToHtml(markdownPipeline))
+                        .Replace("{links}", linksHtml)
 
-    HtmlHelper.PrettyPrint(html)
+                HtmlHelper.PrettyPrint(html)
 
-let getPageTemplate () =
-    File.ReadAllText pageTemplate
+            let getPageTemplate () =
+                File.ReadAllText pageTemplate
 
-let writeFile (fileName: string) (content) =
-    let fileFolder = Path.GetDirectoryName(fileName)
-    if Directory.Exists fileFolder = false then
-        Directory.CreateDirectory(fileFolder) |> ignore
+            let writeFile (fileName: string) (content) =
+                let fileFolder = Path.GetDirectoryName(fileName)
+                if Directory.Exists fileFolder = false then
+                    Directory.CreateDirectory(fileFolder) |> ignore
 
-    File.WriteAllText(fileName, content)
+                File.WriteAllText(fileName, content)
 
-let writeDocument (theme, chapter, html) =
-    let fileName = Path.Combine(outputFolder, (chapterUrl theme chapter).Replace('/', Path.DirectorySeparatorChar))
-    writeFile fileName html
+            let writeDocument (theme, chapter, html) =
+                let fileName = Path.Combine(outputFolder, (chapterUrl theme chapter).Replace('/', Path.DirectorySeparatorChar))
+                writeFile fileName html
 
-let writeIndex (theme, chapter, html) =
-    let fileName = Path.Combine(outputFolder, "index.html")
-    writeFile fileName html
+            let writeIndex (theme, chapter, html) =
+                let fileName = Path.Combine(outputFolder, "index.html")
+                writeFile fileName html
 
-let template = getPageTemplate()
+            let template = getPageTemplate()
 
-let themes = getThemes()
+            let themes = getThemes()
 
-let pages = 
-    themes
-    |> Array.map (fun theme -> 
-        theme.Chapters 
-        |> Array.map (fun chapter -> (theme, chapter, populatePageTemplate themes theme chapter template)))
-    |> Array.collect id
+            let pages = 
+                themes
+                |> Array.map (fun theme -> 
+                    theme.Chapters 
+                    |> Array.map (fun chapter -> (theme, chapter, populatePageTemplate themes theme chapter template)))
+                |> Array.collect id
 
-pages |> Array.iter writeDocument
+            pages |> Array.iter writeDocument
 
-let coverPage = pages |> Array.head |> writeIndex
+            let coverPage = pages |> Array.head |> writeIndex
 
-if Directory.EnumerateFiles outputFolder |> Seq.isEmpty = false then
+            if Directory.EnumerateFiles outputFolder |> Seq.isEmpty = false then
 
-    let publishFolder = Environment.GetEnvironmentVariable("PublishFolder")
+                let publishFolder = Environment.GetEnvironmentVariable("PublishFolder")
 
-    deleteFolder publishFolder
+                deleteFolder publishFolder
 
-    copyFolder outputFolder publishFolder
+                copyFolder outputFolder publishFolder
+        else
+            try
+                do! Task.Delay(TimeSpan.FromMinutes(1), cancellationToken = cts.Token)
+            with 
+            | :? TaskCanceledException -> ignore()
+}
+
+Task.WaitAll mainTask
 
 exit 0

@@ -8,6 +8,7 @@
   <Folder Name="/Containers/">
     <Project Path="container-apps\http-container\src\HttpContainer.csproj" />
     <Project Path="container-apps\process-container\src\ProcessContainer.fsproj" />
+    <Project Path="container-apps\process-trigger-container\src\ProcessTriggerContainer.fsproj" />
     <Project Path="container-apps\storage-container\src\StorageContainer.csproj" />
   </Folder>
 </Solution>

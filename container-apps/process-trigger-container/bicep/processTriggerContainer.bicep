@@ -25,16 +25,14 @@ resource ContainerAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@
 resource ServiceBus 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' existing = {
   name: serviceBusNamespaceName
 
-  resource ServiceBusQueue 'queues' existing = {
+  resource ServiceBusQueue 'queues' = {
     name: 'process'
   }
 }
 
-var listKeysEndpoint = '${ServiceBus.id}/AuthorizationRules/RootManageSharedAccessKey'
-
-resource ProcessContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource ProcessContainerApp 'Microsoft.App/jobs@2024-03-01' = {
   location: location
-  name: '${namePrefix}-process'
+  name: '${namePrefix}-process-trigger'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -44,69 +42,34 @@ resource ProcessContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     environmentId: ContainerEnvironment.id
     configuration: {
-      activeRevisionsMode: 'Single'
+      triggerType: 'Schedule'
+      replicaTimeout: 60
       registries: [
         {
           server: '${ContainerRegistry.name}.azurecr.io'
           identity: ContainerAppIdentity.id
         }
       ]
-      secrets: [
-        {
-          name: 'servicebusauth'
-          value: 'Endpoint=sb://${ServiceBus.name}.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=${listKeys(listKeysEndpoint, ServiceBus.apiVersion).primaryKey}'
-        }
-      ]
-      maxInactiveRevisions: 3
+      scheduleTriggerConfig: {
+        cronExpression: '0 */1 * * *'
+      }
     }
     template: {
-      revisionSuffix: revisionName
-      terminationGracePeriodSeconds: 30
-      scale: {
-        minReplicas: 0
-        maxReplicas: 1
-        rules: [
-          {
-            name: 'queue-based-autoscaling'
-            custom: {
-              type: 'azure-servicebus'
-              metadata: {
-                queueName: ServiceBus::ServiceBusQueue.name
-                messageCount: '1'
-              }
-              auth: [
-                {
-                  secretRef: 'servicebusauth'
-                  triggerParameter: 'connection'
-                }
-              ]
-            }
-          }
-        ]
-      }
       containers: [
         {
-          image: '${ContainerRegistry.name}.azurecr.io/process-container:${containerTag}'
+          image: '${ContainerRegistry.name}.azurecr.io/process-trigger-container:${containerTag}'
           name: revisionName
           env: [
             {
-              name: 'InputFile'
-              value: 'https://github.com/ThomasBleijendaal/blog/archive/refs/heads/main.zip'
-            }
-            {
-              name: 'PublishFolder'
-              value: '/share/static'
-            }
-            {
-              name: 'ServiceBusFqns'
+              name: 'SB_FQNS'
               value: '${ServiceBus.name}.servicebus.windows.net'
             }
             {
-              name: 'TenantId'
+              name: 'TENANT_ID'
               value: subscription().tenantId
             }
             {
-              name: 'ClientId'
+              name: 'CLIENT_ID'
               value: ContainerAppIdentity.properties.clientId
             }
           ]

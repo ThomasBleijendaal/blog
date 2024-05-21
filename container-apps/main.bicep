@@ -6,10 +6,16 @@ param containerRegistryName string = '${namePrefix}cr'
 param containerEnvironmentName string = '${namePrefix}-ace'
 param containerAppUidName string = '${namePrefix}-uid'
 param logAnalyticsWorkspaceName string = '${namePrefix}-law'
+param serviceBusNamespaceName string = '${namePrefix}-asb'
 
 param arcPullRoleDefinitionId string = resourceId(
   'Microsoft.Authorization/roleDefinitions',
   '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+)
+
+param asbDataOwnerRoleDefinitionId string = resourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '090c5cfd-751d-490a-894a-3ce6f1109419'
 )
 
 resource ContainerStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -50,17 +56,6 @@ resource ContainerRegistry 'Microsoft.ContainerRegistry/registries@2023-11-01-pr
     }
     publicNetworkAccess: 'Enabled'
     networkRuleBypassOptions: 'AzureServices'
-  }
-}
-
-resource LogAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  location: location
-  name: logAnalyticsWorkspaceName
-  properties: {
-    retentionInDays: 30
-    sku: {
-      name: 'PerGB2018'
-    }
   }
 }
 
@@ -111,17 +106,50 @@ resource ContainerEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
+resource ServiceBus 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
+  location: location
+  name: serviceBusNamespaceName
+  properties: {
+    minimumTlsVersion: '1.2'
+  }
+  sku: {
+    name: 'Basic'
+    tier: 'Basic'
+  }
+}
+
 resource ContainerAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   location: location
   name: containerAppUidName
 }
 
-resource ContainerAppIdentityRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource ContainerAppIdentityArcPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, ContainerAppIdentity.name, ContainerRegistry.name)
   scope: ContainerRegistry
   properties: {
     principalId: ContainerAppIdentity.properties.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: arcPullRoleDefinitionId
+  }
+}
+
+resource ContainerAppIdentityAsbDataOwnerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, ContainerAppIdentity.name, ContainerRegistry.name, asbDataOwnerRoleDefinitionId)
+  scope: ServiceBus
+  properties: {
+    principalId: ContainerAppIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: asbDataOwnerRoleDefinitionId
+  }
+}
+
+resource LogAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  location: location
+  name: logAnalyticsWorkspaceName
+  properties: {
+    retentionInDays: 30
+    sku: {
+      name: 'PerGB2018'
+    }
   }
 }

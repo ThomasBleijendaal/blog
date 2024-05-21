@@ -43,4 +43,4 @@ Database Container
 :   Some open-source database that can be used to search on index blog data. I'll have the investigate what fancy database I can use for this and if I'm actually going to use this.
 
 Process Container
-:   This container will run some Console or Azure Function-based code that will convert the markdown from the GitHub repo, builds all the pages, beautifies the HTML as I want readable HTML source, and stores it in the Storage Container. This will be written in F#.
+:   This container will run some Console or Azure Function-based code that will convert the markdown from the GitHub repo, builds all the pages, beautifies the HTML as I want readable HTML source, and stores it in the Storage Container. This will be written in F#. The trigger of this container will be a service bus queue that receives messages from a trigger in the GitHub repo.
