@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+      <Compile Include="Types.fs" />
+      <Compile Include="IO.fs" />
+      <Compile Include="Azure.fs" />
+      <Compile Include="Template.fs" />
+      <Compile Include="Operations.fs" />
       <Compile Include="Program.fs" />
   </ItemGroup>
 
