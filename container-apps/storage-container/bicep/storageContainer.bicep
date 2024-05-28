@@ -73,23 +73,26 @@ resource StorageContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Liveness'
               tcpSocket: {
-                port: 8080
+                port: 8082
               }
-              periodSeconds: 10
+              periodSeconds: 5
+              failureThreshold: 1
             }
             {
               type: 'Readiness'
               tcpSocket: {
-                port: 8080
+                port: 8083
               }
-              periodSeconds: 10
+              periodSeconds: 5
+              failureThreshold: 1
             }
             {
               type: 'Startup'
               tcpSocket: {
-                port: 8080
+                port: 8081
               }
-              periodSeconds: 10
+              periodSeconds: 5
+              failureThreshold: 1
             }
           ]
           volumeMounts: [

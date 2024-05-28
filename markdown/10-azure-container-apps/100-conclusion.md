@@ -8,7 +8,7 @@ There are quite somethings to pay attention to when developing something using C
 
 ## Kubernetes
 
-- gRPC and kubernetes are not the friends you'd expect. The probing doesn't really work. It looks like a recent release fixed some of that, but its not in Container Apps yet.
+- Probing gRPC ASP.NET projects are a bit hard, as HTTP/2 probes are not supported by Kubernetes and setting up HTTP/1 next to HTTP/2 leads to SSL issues. I've solved it by implementing some custom TCP listeners running in a background service.
 - Standardize on port numbering. It's easy to create a mess because ASP.NET defaults to 8080 while Function Apps to 80, its probably best to assign the same port number to the same stuff.
 - Being able to connect with a container and inspect its contents via the console is very useful. But not possible if the container doesn't want to start.
 - Inter-container communication can be done by configuring the FQDN of the target container as environment variable, but can also be done by configuring the target containers name and append the `CONTAINER_APP_ENV_DNS_SUFFIX` environment variable to it. 
