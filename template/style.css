@@ -140,6 +140,10 @@ aside.note {
     background: #a0c0e0;
     border-left: 5px solid #5080d0;
 }
+aside.aside {
+    background: #c0c0c0;
+    border-left: 5px solid #808080;
+}
 
 div:has(pre) {
     display: grid;
