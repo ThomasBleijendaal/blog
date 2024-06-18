@@ -42,3 +42,8 @@ Disallow: /
 # https://darkvisitors.com/agents/claudebot
 User-agent: ClaudeBot 
 Disallow: /
+
+# Apple
+# https://darkvisitors.com/agents/applebot-extended
+User-agent: Applebot-Extended 
+Disallow: /

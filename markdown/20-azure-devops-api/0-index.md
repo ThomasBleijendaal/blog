@@ -12,7 +12,7 @@ To get to the data I wanted to get, I needed to use the `Microsoft.TeamFoundatio
 
 I didn't want to reimplement the entire web api all over again, or copy over all the stuff I needed and cobble something together. But, since the client libraries assume they can use the `Credential` feature of `HttpClient`, they are not compatible with the web assembly runtime:
 
-```
+```stacktrace
 crit: Microsoft.AspNetCore.Components.WebAssembly.Rendering.WebAssemblyRenderer[100]
       Unhandled exception rendering component: Operation is not supported on this platform.
 System.PlatformNotSupportedException: Operation is not supported on this platform.
