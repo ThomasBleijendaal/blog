@@ -40,16 +40,13 @@ Test 1 can be implemented as:
 [Test]
 public async Task Test1()
 {
-    // arrange
     var dependency = Substitute.For<Func<string, Task>>();
     dependency.Invoke(Arg.Any<string>()).Returns(Task.CompletedTask);
 
     var subject = new Class(dependency);
 
-    // act
     await subject.DoSomethingAsync("input");
 
-    // assert
     await dependency.Received().Invoke("input");
 }
 ```
@@ -62,17 +59,14 @@ Test 2 can be implemented as:
 [Test]
 public async Task Test2()
 {
-    // arrange
     var dependency = Substitute.For<Func<string, Task>>();
     dependency.Invoke(Arg.Any<string>()).Returns(Task.FromException(new Exception()));
 
     var subject = new Class(dependency);
 
-    // act
     var act = () => subject.DoSomethingAsync("input");
-    await act.Should().ThrowAsync<Exception>();
 
-    // assert
+    await act.Should().ThrowAsync<Exception>();
     await dependency.Received().Invoke("input");
 }
 ```
@@ -85,11 +79,10 @@ It can be tempting to skip the check under `assert` in the second test. The fact
 [Test]
 public async Task Test2Bad()
 {
-    // arrange
     var subject = new Class(null);
 
-    // act
     var act = () => subject.DoSomethingAsync("input");
+
     await act.Should().ThrowAsync<Exception>();
 }
 ```

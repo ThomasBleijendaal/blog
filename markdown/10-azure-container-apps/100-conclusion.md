@@ -38,4 +38,4 @@ Please note that the consumption plan function app could (in theory) scale infin
 - Random manual Postman requests: still around 25ms.
 - Load test with 25 concurrent users: 100ms, with a deviation of 2ms. 
 
-The function app was talking directly to the storage account, while the internet facing http container first talked to another container over gRPCs, which in turn talked to the storage account.
+The function app was talking directly to the storage account, while the internet facing http container first talked to another container over gRPC, which in turn talked to the storage account.
