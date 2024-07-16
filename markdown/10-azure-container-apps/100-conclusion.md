@@ -25,3 +25,17 @@ There are quite somethings to pay attention to when developing something using C
 - Depending on how big the containers are and how many dependencies they have, it might be good to deploy each Container App to its own resource groups.
 - Azure Function containers still need a storage account. Since each function assumes its the only user of that storage account, you'll need a lot.
 - Linux .NET is something different than Windows .NET, and some abstractions don't work. For example, `Directory.Move` doesn't work if the target folder is on another device, and devices are hard to spot on Linux. `Directory.Delete()` can fail on non-empty folders even though it's instructed to delete recursively. This has to do with SMB on Azure Files, which sometimes schedules files to be deleted, without actually deleting them, making it very annoying to work with it. It's important to use ReadOnly and ReadWrite file shares, as that can help mitigate the SMB issues.
+
+## Performance
+
+I've also performed the same load test on the new setup, and got these results:
+
+- Random manual Postman requests: around 25ms, versus 50ms of the function app.
+- Load test with 25 concurrent users: 225ms, versus 130ms of the function app. 
+
+Please note that the consumption plan function app could (in theory) scale infinitely, while the container app was limited to 2 replicas of 0.25cpu. I do notice some disruption when the second replica was added, so I retested and got:
+
+- Random manual Postman requests: still around 25ms.
+- Load test with 25 concurrent users: 100ms, with a deviation of 2ms. 
+
+The function app was talking directly to the storage account, while the internet facing http container first talked to another container over gRPCs, which in turn talked to the storage account.
