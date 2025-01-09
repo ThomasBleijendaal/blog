@@ -107,3 +107,5 @@ let publish () =
         deleteFolder publishFolder
 
         copyFolder outputFolder publishFolder
+
+        Threading.Thread.Sleep(1000)

@@ -1,7 +1,7 @@
 ---
 theme: Unit Testing
 title: Side effects
-visible: true
+visible: false
 ---
 
 Let's suppose we have a class that implements the following interface:

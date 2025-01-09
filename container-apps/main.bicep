@@ -34,6 +34,9 @@ resource ContainerStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 
     resource Share 'shares' = {
       name: 'share'
+      properties: {
+        accessTier: 'Cool'
+      }
     }
   }
 }

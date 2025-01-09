@@ -1,7 +1,7 @@
 ---
 theme: Unit Testing
 title: Branching code with side effects
-visible: true
+visible: false
 ---
 
 Most methods that we test are methods that accept some input, have some side effects, return some output, and do that with some logic that is based on the input and data from the side effects. This branching is the source of a lot of testing trouble. Let's consider the following:

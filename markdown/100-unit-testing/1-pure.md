@@ -1,7 +1,7 @@
 ---
 theme: Unit Testing
 title: Pure functions
-visible: true
+visible: false
 ---
 
 Pure functions are a unit testers dream, as only the input completely dictate the behavior of the function. There is no need for a complicated setup, as there is no state to simulate. Take the following function for example:

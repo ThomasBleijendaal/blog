@@ -1,7 +1,7 @@
 ---
 theme: Unit Testing
 title: Introduction
-visible: true
+visible: false
 ---
 
 This section will contain some of my investigations and explorations into better unit testing strategies, to discover why unit testing, for me, always ends up at the same place: Too complicated, too much setup, too much dependencies, too much effort to expand the functionality a little bit.
